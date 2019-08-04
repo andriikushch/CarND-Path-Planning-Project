@@ -7,6 +7,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "helpers.h"
 #include "json.hpp"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -97,9 +98,34 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+          int previous_path_size = previous_path_x.size();
+          double pos_x;
+          double pos_y;
+          double angle;
+
+          for (int i = 0; i < previous_path_size; ++i) {
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
+          }
+
+          if (previous_path_size == 0) {
+            pos_x = car_x;
+            pos_y = car_y;
+            angle = deg2rad(car_yaw);
+          } else {
+            pos_x = previous_path_x[previous_path_size-1];
+            pos_y = previous_path_y[previous_path_size-1];
+
+            double pos_x2 = previous_path_x[previous_path_size-2];
+            double pos_y2 = previous_path_y[previous_path_size-2];
+            angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
+          }
+
+          vector<double> sd = getFrenet(pos_x, pos_y, angle, map_waypoints_x, map_waypoints_y);
+
           double dist_inc = 0.4;
-          for (int i = 0; i < 50; ++i) {
-            double next_s = car_s + (i+1) * dist_inc;
+          for (int i = 0; i < 50-previous_path_size; ++i) {
+            double next_s = sd[0] + (i+1) * dist_inc;
             double next_d = 6;
             vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
