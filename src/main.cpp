@@ -98,7 +98,11 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+
+          // reuse of previous path
           int previous_path_size = previous_path_x.size();
+
+          // real world coordinates x and y
           double pos_x;
           double pos_y;
           double angle;
