@@ -61,6 +61,7 @@ int main() {
 
     int lane = 1;
     double distance_for_a_next_waypoint = 30;
+    double ref_vel = 29.5;
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
@@ -106,7 +107,6 @@ int main() {
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
-          double ref_vel = car_speed;
 
           int prev_size = previous_path_x.size();
 
@@ -173,7 +173,7 @@ int main() {
 
           double target_x = 30.0;
           double target_y = s(target_x);
-          double target_dist = sqrt((target_x*target_x) - (target_y*target_y));
+          double target_dist = sqrt((target_x*target_x) + (target_y*target_y));
 
           double x_add_on = 0;
 
