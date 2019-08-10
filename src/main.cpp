@@ -55,7 +55,7 @@ int main() {
   int lane = 1;
   double ref_vel = 0.1;
 
-  h.onMessage([&ref_vel, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+  h.onMessage([&lane, &ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
@@ -65,7 +65,6 @@ int main() {
     double distance_for_a_next_waypoint = 30;
     double target_speed = 49.5;
     double distance_threshold = 30;
-    bool too_close = false;
     double dt = 0.02;
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
@@ -111,31 +110,73 @@ int main() {
             car_s = end_path_s;
           }
 
+          bool canChangeLeft = true;
+          bool canChangeRight = true;
+
+          bool carsOnLeft = false;
+          bool carsOnRight = false;
+
+          bool shouldSlowDown = false;
+
           for (auto & sf : sensor_fusion) {
             float d = sf[6];
 
-            if (d < (2+4*lane+2) && d > (2+4*lane-2)) {
-              double vx = sf[3];
-              double vy = sf[4];
-              double check_speed = sqrt(vx*vx * vy*vy);
-              double check_car_s = sf[5];
+            if (d < 0 || d > 12) {
+              continue;
+            }
 
-//              check_car_s += (double)prev_size * dt * check_speed;
-              bool is_car_in_front = check_car_s > car_s;
-              double distance_to_car = check_car_s - car_s;
+            if (lane <= 0) {
+              canChangeLeft = false;
+            }
 
-              if (is_car_in_front && distance_to_car < distance_threshold) {
-                  too_close = true;
+            if (lane >= 2) {
+              canChangeRight = false;
+            }
+
+
+
+            double vx = sf[3];
+            double vy = sf[4];
+            double check_speed = sqrt(vx*vx * vy*vy);
+            double check_car_s = sf[5];
+
+            check_car_s += (double)prev_size * dt * check_speed;
+            bool is_car_in_front = check_car_s > car_s;
+            double distance_to_car = check_car_s - car_s;
+
+            if (distance_to_car < distance_threshold || measured_distance < distance_threshold) {
+              if (is_car_in_front && d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+                shouldSlowDown |= true;
+              }
+            }
+
+            if (abs(distance_to_car) < distance_threshold*1.5) {
+              if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+                carsOnLeft |= true;
+              }
+
+              if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+                carsOnRight |= true;
               }
             }
           }
 
-          if (too_close) {
+          if (canChangeRight && !carsOnRight) {
+            lane++;
+          }
+
+          if(shouldSlowDown) {
             ref_vel -= 0.224;
-          } else
-          if(ref_vel < target_speed){
+          } else if(!shouldSlowDown && ref_vel < target_speed) {
             ref_vel += 0.224;
           }
+
+          std::cout << "shouldSlowDown " << shouldSlowDown
+          << " canChangeLeft " << (canChangeLeft && carsOnLeft)
+          << " canChangeRight " << (canChangeRight && carsOnRight)
+          << " lane " << lane
+          <<"\n";
+
 
           vector<double> ptsx;
           vector<double> ptsy;
@@ -171,9 +212,9 @@ int main() {
 
           // create a new point in Frenet coordinates
 
-          vector<double> next_wp0 = getXY(car_s + 1*distance_for_a_next_waypoint, (4+2*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s + 2*distance_for_a_next_waypoint, (4+2*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s + 3*distance_for_a_next_waypoint, (4+2*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(car_s + 1*distance_for_a_next_waypoint, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(car_s + 2*distance_for_a_next_waypoint, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(car_s + 3*distance_for_a_next_waypoint, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
           ptsx.push_back(next_wp0[0]);
           ptsx.push_back(next_wp1[0]);
