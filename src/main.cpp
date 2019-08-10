@@ -64,11 +64,9 @@ int main() {
     // The 2 signifies a websocket event
     double distance_for_a_next_waypoint = 30;
     double target_speed = 49.5;
-    double distance_threshold = 20;
+    double distance_threshold = 30;
     bool too_close = false;
     double dt = 0.02;
-
-    std::cout << std::setprecision(2) << std::fixed;
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
@@ -125,8 +123,6 @@ int main() {
 //              check_car_s += (double)prev_size * dt * check_speed;
               bool is_car_in_front = check_car_s > car_s;
               double distance_to_car = check_car_s - car_s;
-
-              std::cout << "car is in our lane " << d << " car in front " << is_car_in_front << " distance is too small " << (distance_to_car < distance_threshold) << " car s " << car_s << " next car s " << sf[5] << " check_car_s " << check_car_s << "\n";
 
               if (is_car_in_front && distance_to_car < distance_threshold) {
                   too_close = true;
