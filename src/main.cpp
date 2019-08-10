@@ -130,45 +130,48 @@ int main() {
             }
 
             if (lane <= 0) {
+              std::cout << "can't change left because of the border of the road \n";
               canChangeLeft = false;
             }
 
             if (lane >= 2) {
+              std::cout << "can't change right because of the border of the road \n";
               canChangeRight = false;
             }
 
             double vx = sf[3];
             double vy = sf[4];
-            double check_speed = sqrt(vx*vx * vy*vy);
+            double check_speed = sqrt(vx*vx + vy*vy);
             double check_car_s = sf[5];
 
             check_car_s += (double)prev_size * dt * check_speed;
             double distance_to_car = check_car_s - car_s;
-            double distance_from_car = car_s - check_car_s;
 
             // looks for the cars in front
-            if (distance_to_car < distance_threshold) {
+            if (0 < distance_to_car && distance_to_car < distance_threshold) {
               if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+                std::cout << "can't change left because of prediction "<< distance_to_car << " " << distance_threshold << "\n";
                 canChangeLeft &= false;
               }
 
               if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+                std::cout << "can't change right because of prediction \n";
                 canChangeRight &= false;
               }
             }
 
             // check if there some cars behind with high speed and find closest
-            if (distance_from_car < distance_threshold*0.2) { // use 0.5 for more aggressive driving
+            if (distance_to_car < 0 && abs(distance_to_car) < distance_threshold*0.5) { // use 0.5 for more aggressive driving
               if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
-                if(minimal_distance_to_the_car_behind_on_the_left_side > distance_from_car) {
-                  minimal_distance_to_the_car_behind_on_the_left_side = distance_from_car;
+                if(minimal_distance_to_the_car_behind_on_the_left_side > distance_to_car) {
+                  minimal_distance_to_the_car_behind_on_the_left_side = distance_to_car;
                   index_of_closest_car_behind_left = sf[0];
                 }
               }
 
               if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
-                if(minimal_distance_to_the_car_behind_on_the_right_side > distance_from_car) {
-                  minimal_distance_to_the_car_behind_on_the_right_side = distance_from_car;
+                if(minimal_distance_to_the_car_behind_on_the_right_side > distance_to_car) {
+                  minimal_distance_to_the_car_behind_on_the_right_side = distance_to_car;
                   index_of_closest_car_behind_right = sf[0];
                 }
               }
@@ -180,20 +183,20 @@ int main() {
             if (sf[0] == index_of_closest_car_behind_left ) {
               double vx = sf[3];
               double vy = sf[4];
-              double check_speed = sqrt(vx*vx * vy*vy);
+              double check_speed = sqrt(vx*vx + vy*vy);
 
-              canChangeLeft &= check_speed < car_speed;
-              std::cout << "there is fast cars left " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
+              canChangeLeft &= check_speed*1.3 < car_speed; // use 1.3 fo safe turn
+              std::cout << "there is fast cars left " << index_of_closest_car_behind_left << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
               continue;
             }
 
             if (sf[0] == index_of_closest_car_behind_right ) {
               double vx = sf[3];
               double vy = sf[4];
-              double check_speed = sqrt(vx*vx * vy*vy);
+              double check_speed = sqrt(vx*vx + vy*vy);
 
-              canChangeRight &= check_speed < car_speed;
-              std::cout << "there is fast cars left " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
+              canChangeRight &= check_speed*1.3 < car_speed; // use 1.3 fo safe turn
+              std::cout << "there is fast cars left " << index_of_closest_car_behind_right << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
               continue;
             }
           }
