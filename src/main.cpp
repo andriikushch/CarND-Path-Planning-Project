@@ -114,6 +114,12 @@ int main() {
           bool canChangeRight = true;
           bool carAhead = false;
 
+          double minimal_distance_to_the_car_behind_on_the_left_side = 100000;
+          int index_of_closest_car_behind_left = -1;
+
+          double minimal_distance_to_the_car_behind_on_the_right_side = 100000;
+          int index_of_closest_car_behind_right = -1;
+
           bool shouldSlowDown = false;
 
           for (auto & sf : sensor_fusion) {
@@ -138,8 +144,10 @@ int main() {
 
             check_car_s += (double)prev_size * dt * check_speed;
             double distance_to_car = check_car_s - car_s;
+            double distance_from_car = car_s - check_car_s;
 
-            if (abs(distance_to_car) < distance_threshold*0.5) {
+            // looks for the cars in front
+            if (distance_to_car < distance_threshold) {
               if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
                 canChangeLeft &= false;
               }
@@ -148,7 +156,48 @@ int main() {
                 canChangeRight &= false;
               }
             }
+
+            // check if there some cars behind with high speed and find closest
+            if (distance_from_car < distance_threshold*0.2) { // use 0.5 for more aggressive driving
+              if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+                if(minimal_distance_to_the_car_behind_on_the_left_side > distance_from_car) {
+                  minimal_distance_to_the_car_behind_on_the_left_side = distance_from_car;
+                  index_of_closest_car_behind_left = sf[0];
+                }
+              }
+
+              if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+                if(minimal_distance_to_the_car_behind_on_the_right_side > distance_from_car) {
+                  minimal_distance_to_the_car_behind_on_the_right_side = distance_from_car;
+                  index_of_closest_car_behind_right = sf[0];
+                }
+              }
+            }
           }
+
+          //find speed of the closest cars behind
+          for (auto & sf : sensor_fusion) {
+            if (sf[0] == index_of_closest_car_behind_left ) {
+              double vx = sf[3];
+              double vy = sf[4];
+              double check_speed = sqrt(vx*vx * vy*vy);
+
+              canChangeLeft &= check_speed < car_speed;
+              std::cout << "there is fast cars left " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
+              continue;
+            }
+
+            if (sf[0] == index_of_closest_car_behind_right ) {
+              double vx = sf[3];
+              double vy = sf[4];
+              double check_speed = sqrt(vx*vx * vy*vy);
+
+              canChangeRight &= check_speed < car_speed;
+              std::cout << "there is fast cars left " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
+              continue;
+            }
+          }
+
 
           // bahaviour
           double car_measured_position = j[1]["s"];
