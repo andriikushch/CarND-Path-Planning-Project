@@ -51,17 +51,21 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+  int lane = 1;
+  double ref_vel = 0.1;
+
+  h.onMessage([&ref_vel, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
-
-    int lane = 1;
     double distance_for_a_next_waypoint = 30;
-    double ref_vel = 29.5;
+    double target_speed = 49.5;
+    double distance_threshold = 30;
+    bool too_close = false;
+    double dt = 0.02;
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
@@ -100,6 +104,39 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+          int prev_size = previous_path_x.size();
+
+          if (prev_size > 0) {
+            car_s = end_path_s;
+          }
+
+          for (auto & sf : sensor_fusion) {
+            float d = sf[6];
+
+            if (d < (2+4*lane+2) && d > (2+4*lane-2)) {
+              double vx = sf[3];
+              double vy = sf[4];
+              double check_speed = sqrt(vx*vx * vy*vy);
+              double check_car_s = sf[5];
+
+              check_car_s += (double)prev_size * dt * check_speed;
+              bool is_car_in_front = check_car_s > car_s;
+              double distance_to_car = check_car_s - car_s;
+
+              std::cout << is_car_in_front << " " << (distance_to_car < distance_threshold) << "\n";
+
+              if (is_car_in_front && distance_to_car < distance_threshold) {
+                  too_close = true;
+              }
+            }
+          }
+
+          if (too_close) {
+            ref_vel -= 0.224;
+          } else
+          if(ref_vel < target_speed){
+            ref_vel += 0.224;
+          }
 
           vector<double> ptsx;
           vector<double> ptsy;
@@ -108,7 +145,6 @@ int main() {
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
 
-          int prev_size = previous_path_x.size();
 
           if (prev_size < 2) {
             double prev_car_x = car_x - cos(car_yaw);
@@ -178,7 +214,7 @@ int main() {
           double x_add_on = 0;
 
           // number of intervals for the target distance
-          double N = (target_dist/(.02*ref_vel/2.24));
+          double N = (target_dist/(dt*ref_vel/2.24)); // 2.24 is koef for miles
 
           for (int i = 0; i <= 50 - prev_size; i++) {
 
