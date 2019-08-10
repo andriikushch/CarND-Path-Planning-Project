@@ -112,9 +112,7 @@ int main() {
 
           bool canChangeLeft = true;
           bool canChangeRight = true;
-
-          bool carsOnLeft = false;
-          bool carsOnRight = false;
+          bool carAhead = false;
 
           bool shouldSlowDown = false;
 
@@ -133,35 +131,55 @@ int main() {
               canChangeRight = false;
             }
 
-
-
             double vx = sf[3];
             double vy = sf[4];
             double check_speed = sqrt(vx*vx * vy*vy);
             double check_car_s = sf[5];
 
             check_car_s += (double)prev_size * dt * check_speed;
-            bool is_car_in_front = check_car_s > car_s;
             double distance_to_car = check_car_s - car_s;
 
-            if (distance_to_car < distance_threshold || measured_distance < distance_threshold) {
-              if (is_car_in_front && d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
-                shouldSlowDown |= true;
-              }
-            }
-
-            if (abs(distance_to_car) < distance_threshold*1.5) {
+            if (abs(distance_to_car) < distance_threshold*0.5) {
               if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
-                carsOnLeft |= true;
+                canChangeLeft &= false;
               }
 
               if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
-                carsOnRight |= true;
+                canChangeRight &= false;
               }
             }
           }
 
-          if (canChangeRight && !carsOnRight) {
+          // bahaviour
+          double car_measured_position = j[1]["s"];
+
+          for (auto & sf : sensor_fusion) {
+            float d = sf[6];
+
+            double vx = sf[3];
+            double vy = sf[4];
+            double check_car_s = sf[5];
+
+            bool is_car_in_front = check_car_s > car_measured_position;
+            double measured_distance_to_car = check_car_s - car_measured_position;
+
+            if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+              if (is_car_in_front && measured_distance_to_car < distance_threshold) {
+                if (is_car_in_front && d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+                  shouldSlowDown |= true;
+                  carAhead |= true;
+                }
+              }
+            }
+          }
+
+
+
+          if (carAhead && canChangeLeft) {
+            lane--;
+          } else if(carAhead && !canChangeLeft && canChangeRight) {
+            lane++;
+          } else if(canChangeRight) {
             lane++;
           }
 
@@ -172,8 +190,8 @@ int main() {
           }
 
           std::cout << "shouldSlowDown " << shouldSlowDown
-          << " canChangeLeft " << (canChangeLeft && carsOnLeft)
-          << " canChangeRight " << (canChangeRight && carsOnRight)
+          << " canChangeLeft " << (canChangeLeft)
+          << " canChangeRight " << (canChangeRight)
           << " lane " << lane
           <<"\n";
 
