@@ -185,7 +185,7 @@ int main() {
               double vy = sf[4];
               double check_speed = sqrt(vx*vx + vy*vy);
 
-              canChangeLeft &= check_speed*1.3 < car_speed; // use 1.3 fo safe turn
+              canChangeLeft &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_left_side) > distance_threshold*0.5; // use 1.3 fo safe turn
               std::cout << "there is fast cars left " << index_of_closest_car_behind_left << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
               continue;
             }
@@ -195,7 +195,7 @@ int main() {
               double vy = sf[4];
               double check_speed = sqrt(vx*vx + vy*vy);
 
-              canChangeRight &= check_speed*1.3 < car_speed; // use 1.3 fo safe turn
+              canChangeRight &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_right_side) > distance_threshold*0.5; // use 1.3 fo safe turn
               std::cout << "there is fast cars left " << index_of_closest_car_behind_right << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
               continue;
             }
@@ -208,8 +208,6 @@ int main() {
           for (auto & sf : sensor_fusion) {
             float d = sf[6];
 
-            double vx = sf[3];
-            double vy = sf[4];
             double check_car_s = sf[5];
 
             bool is_car_in_front = check_car_s > car_measured_position;
