@@ -86,12 +86,12 @@ int main() {
 
       if (s != "") {
         auto j = json::parse(s);
-        
+
         string event = j[0].get<string>();
-        
+
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          
+
           // Main car's localization Data
           double car_x = j[1]["x"];
           double car_y = j[1]["y"];
@@ -103,11 +103,11 @@ int main() {
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
-          // Previous path's end s and d values 
+          // Previous path's end s and d values
           double end_path_s = j[1]["end_path_s"];
           double end_path_d = j[1]["end_path_d"];
 
-          // Sensor Fusion Data, a list of all other cars on the same side 
+          // Sensor Fusion Data, a list of all other cars on the same side
           //   of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
@@ -178,7 +178,30 @@ int main() {
                                                                  index_of_closest_car_behind_right);
           }
 
-          // use current sensor fusion data to prevent a collision with a car in front, left and right sides
+          // check if changing the line is safe regarding the distance to the cars behind and their velocity
+          for (auto & sf : sensor_fusion) {
+            if (sf[0] == index_of_closest_car_behind_left ) {
+              double vx = sf[3];
+              double vy = sf[4];
+              double check_speed = sqrt(vx*vx + vy*vy);
+
+              canChangeLeft &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_left_side) > distance_threshold*0.5; // use 0.5 fo safe turn
+//              std::cout << "there is fast cars left " << index_of_closest_car_behind_left << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
+              continue;
+            }
+
+            if (sf[0] == index_of_closest_car_behind_right ) {
+              double vx = sf[3];
+              double vy = sf[4];
+              double check_speed = sqrt(vx*vx + vy*vy);
+
+              canChangeRight &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_right_side) > distance_threshold*0.5; // use 0.5 fo safe turn
+//              std::cout << "there is fast cars right " << index_of_closest_car_behind_right << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
+              continue;
+            }
+          }
+
+          // use current sensor fusion data to prevent a collision with a car in front
           double car_measured_position = j[1]["s"];
 
           for (auto & sf : sensor_fusion) {
@@ -369,7 +392,7 @@ int main() {
     std::cerr << "Failed to listen to port" << std::endl;
     return -1;
   }
-  
+
   h.run();
 }
 
