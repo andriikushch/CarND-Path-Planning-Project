@@ -178,30 +178,7 @@ int main() {
                                                                  index_of_closest_car_behind_right);
           }
 
-          // check if changing the line is safe regarding the distance to the cars behind and their velocity
-          for (auto & sf : sensor_fusion) {
-            if (sf[0] == index_of_closest_car_behind_left ) {
-              double vx = sf[3];
-              double vy = sf[4];
-              double check_speed = sqrt(vx*vx + vy*vy);
-
-              canChangeLeft &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_left_side) > distance_threshold*0.5; // use 0.5 fo safe turn
-//              std::cout << "there is fast cars left " << index_of_closest_car_behind_left << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
-              continue;
-            }
-
-            if (sf[0] == index_of_closest_car_behind_right ) {
-              double vx = sf[3];
-              double vy = sf[4];
-              double check_speed = sqrt(vx*vx + vy*vy);
-
-              canChangeRight &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_right_side) > distance_threshold*0.5; // use 0.5 fo safe turn
-//              std::cout << "there is fast cars right " << index_of_closest_car_behind_right << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
-              continue;
-            }
-          }
-
-          // use current sensor fusion data to prevent a collision with a car in front
+          // use current sensor fusion data to prevent a collision with a car in front, left and right sides
           double car_measured_position = j[1]["s"];
 
           for (auto & sf : sensor_fusion) {
