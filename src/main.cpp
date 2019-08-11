@@ -136,6 +136,15 @@ int main() {
           double minimal_distance_to_the_car_behind_on_the_right_side = 100000;
           int index_of_closest_car_behind_right = -1;
 
+          // disallow left turn if we are already on the most left lane
+          if (lane <= 0) {
+            canChangeLeft = false;
+          }
+
+          // disallow right turn if we are already on the most left lane
+          if (lane >= 2) {
+            canChangeRight = false;
+          }
 
           for (auto & sf : sensor_fusion) {
             // get d coordinate of the car
@@ -144,18 +153,6 @@ int main() {
             // check if car is on the our side of the highway
             if (d < 0 || d > 12) {
               continue;
-            }
-
-            // disallow left turn if we are already on the most left lane
-            if (lane <= 0) {
-//              std::cout << "can't change left because of the border of the road \n";
-              canChangeLeft = false;
-            }
-
-            // disallow right turn if we are already on the most left lane
-            if (lane >= 2) {
-//              std::cout << "can't change right because of the border of the road \n";
-              canChangeRight = false;
             }
 
             double vx = sf[3];
