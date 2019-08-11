@@ -148,13 +148,13 @@ int main() {
 
             // disallow left turn if we are already on the most left lane
             if (lane <= 0) {
-              std::cout << "can't change left because of the border of the road \n";
+//              std::cout << "can't change left because of the border of the road \n";
               canChangeLeft = false;
             }
 
             // disallow right turn if we are already on the most left lane
             if (lane >= 2) {
-              std::cout << "can't change right because of the border of the road \n";
+//              std::cout << "can't change right because of the border of the road \n";
               canChangeRight = false;
             }
 
@@ -166,11 +166,11 @@ int main() {
             check_car_s += (double)prev_size * dt * check_speed;
             double distance_to_car = check_car_s - car_s;
 
-            // looks for the cars in front
+            // looks for the cars in front in the future
             checkIfCanTurnBecauseOfCarsInFront(lane, distance_threshold, d, distance_to_car, canChangeLeft,
                                                canChangeRight);
 
-            // check if there some cars behind with high speed and find closest
+            // check if there will be some cars behind with high speed and find closest
             findClosestCarsBehindWhichCanCreateAnIssueForTheTurn(sf[0], lane, distance_threshold, d, distance_to_car,
                                                                  minimal_distance_to_the_car_behind_on_the_left_side,
                                                                  index_of_closest_car_behind_left,
@@ -185,8 +185,8 @@ int main() {
               double vy = sf[4];
               double check_speed = sqrt(vx*vx + vy*vy);
 
-              canChangeLeft &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_left_side) > distance_threshold*0.5; // use 1.3 fo safe turn
-              std::cout << "there is fast cars left " << index_of_closest_car_behind_left << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
+              canChangeLeft &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_left_side) > distance_threshold*0.5; // use 0.5 fo safe turn
+//              std::cout << "there is fast cars left " << index_of_closest_car_behind_left << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_left_side << "\n";
               continue;
             }
 
@@ -195,8 +195,8 @@ int main() {
               double vy = sf[4];
               double check_speed = sqrt(vx*vx + vy*vy);
 
-              canChangeRight &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_right_side) > distance_threshold*0.5; // use 1.3 fo safe turn
-              std::cout << "there is fast cars left " << index_of_closest_car_behind_right << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
+              canChangeRight &= check_speed*1.3 < car_speed && abs(minimal_distance_to_the_car_behind_on_the_right_side) > distance_threshold*0.5; // use 0.5 fo safe turn
+//              std::cout << "there is fast cars right " << index_of_closest_car_behind_right << " " << (check_speed < car_speed) << " check_speed " << check_speed << " car_speed " << car_speed << " dist " << minimal_distance_to_the_car_behind_on_the_right_side << "\n";
               continue;
             }
           }
@@ -212,12 +212,10 @@ int main() {
             bool is_car_in_front = check_car_s > car_measured_position;
             double measured_distance_to_car = check_car_s - car_measured_position;
 
-            if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
+            if (d < (4+4*lane) && d > (4*lane)) {
               if (is_car_in_front && measured_distance_to_car < distance_threshold) {
-                if (is_car_in_front && d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)) {
                   shouldSlowDown |= true;
                   carAhead |= true;
-                }
               }
             }
           }
@@ -389,14 +387,16 @@ void findClosestCarsBehindWhichCanCreateAnIssueForTheTurn(int car_id, int lane, 
                                                           double &minimal_distance_to_the_car_behind_on_the_right_side,
                                                           int &index_of_closest_car_behind_right) {
   if (distance_to_car < 0 && abs(distance_to_car) < distance_threshold * 0.5) { // use 0.5 for more aggressive driving
-    if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+    // left lane
+    if (d < (4+4*(lane-1)) && d > (4*(lane-1))) {
       if(minimal_distance_to_the_car_behind_on_the_left_side > distance_to_car) {
         minimal_distance_to_the_car_behind_on_the_left_side = distance_to_car;
         index_of_closest_car_behind_left = car_id;
       }
     }
 
-    if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+    // right lane
+    if (d < (4+4*(lane+1)) && d > (4*(lane+1))) {
       if(minimal_distance_to_the_car_behind_on_the_right_side > distance_to_car) {
         minimal_distance_to_the_car_behind_on_the_right_side = distance_to_car;
         index_of_closest_car_behind_right = car_id;
@@ -408,13 +408,13 @@ void findClosestCarsBehindWhichCanCreateAnIssueForTheTurn(int car_id, int lane, 
 void checkIfCanTurnBecauseOfCarsInFront(int lane, const double distance_threshold, float d, double distance_to_car,
                                         bool &canChangeLeft, bool &canChangeRight) {
   if (0 < distance_to_car && distance_to_car < distance_threshold) {
-    if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+    if (d < (4+4*(lane-1)) && d > (4*(lane-1))) {
       // Debug
       // std::cout << "can't change left because of prediction "<< distance_to_car << " " << distance_threshold << "\n";
       canChangeLeft &= false;
     }
 
-    if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+    if (d < (4+4*(lane+1)) && d > (4*(lane+1))) {
       // Debug
       // std::cout << "can't change right because of prediction \n";
       canChangeRight &= false;
