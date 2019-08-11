@@ -209,13 +209,29 @@ int main() {
 
             double check_car_s = sf[5];
 
+            double vx = sf[3];
+            double vy = sf[4];
+            double check_speed = sqrt(vx*vx + vy*vy);
+
             bool is_car_in_front = check_car_s > car_measured_position;
-            double measured_distance_to_car = check_car_s - car_measured_position;
+            double measured_distance_to_car = abs(check_car_s - car_measured_position);
 
             if (d < (4+4*lane) && d > (4*lane)) {
               if (is_car_in_front && measured_distance_to_car < distance_threshold) {
                   shouldSlowDown |= true;
                   carAhead |= true;
+              }
+            }
+
+            if (d < (4+4*(lane+1)) && d > (4*(lane+1))) {
+              if (!is_car_in_front && measured_distance_to_car < distance_threshold*3 && check_speed > car_speed*1.3) {
+                canChangeRight = false;
+              }
+            }
+
+            if (d < (4+4*(lane-1)) && d > (4*(lane-1))) {
+              if (!is_car_in_front && measured_distance_to_car < distance_threshold*3 && check_speed > car_speed*1.3) {
+                canChangeLeft = false;
               }
             }
           }
