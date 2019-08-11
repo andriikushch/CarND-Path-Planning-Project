@@ -22,12 +22,12 @@ int lane = 1;
 These constant will be used in implementation. 
 
 #### Size of previous path for reuse
-```
+```c++
 int prev_size = previous_path_x.size();
 ```
 
 #### Define variables which will define possible behaviours
-```
+```c++
 bool canChangeLeft = true;
 bool canChangeRight = true;
 bool carAhead = false;
@@ -35,14 +35,14 @@ bool shouldSlowDown = false;
 ```
 
 #### Try to use end if existed path as current car position for trajectory prediction
-```
+```c++
 if (prev_size > 0) {
 	car_s = end_path_s;
 }
 ```
 
 #### Variables to find the closest cars in adjacent lines, to ensure that switching the line is safe
-```
+```c++
 double minimal_distance_to_the_car_behind_on_the_left_side = 100000;
 int index_of_closest_car_behind_left = -1;
 
@@ -51,14 +51,14 @@ int index_of_closest_car_behind_right = -1;
 ```
 
 #### Disallow left turn if we are already on the most left lane
-```      
+```  c++
 if (lane <= 0) {
 	canChangeLeft = false;
 }
 ```
 
 #### Disallow right turn if we are already on the most left lane
-```
+```c++
 if (lane >= 2) {
 	canChangeRight = false;
 }
@@ -72,7 +72,7 @@ if (lane >= 2) {
 
 If the situation on the road changed rapidly we want to react, by modifying
 
-```
+```c++
 shouldSlowDown;
 carAhead;
 canChangeRight;
@@ -80,7 +80,7 @@ canChangeLeft;
 ```
 
 #### Make decision about changing the lane or decreasing the speed
-```
+```c++
 if (carAhead && canChangeLeft) {
     lane--;
 } else if(carAhead && !canChangeLeft && canChangeRight) {
@@ -89,7 +89,7 @@ if (carAhead && canChangeLeft) {
 ```
 
 #### Change speed to avoid a collision but tries to get back to the target speed if possible
-```
+```c++
 if(shouldSlowDown) {
 	ref_vel -= max_acc;
 } else if(!shouldSlowDown && ref_vel < target_speed) {
