@@ -10,6 +10,16 @@
 #include "json.hpp"
 #include "spline.h"
 
+void checkIfCanTurnBecauseOfCarsInFront(int lane, double distance_threshold, float d, double distance_to_car,
+                                        bool &canChangeLeft, bool &canChangeRight);
+
+void findClosestCarsBehindWhichCanCreateAnIssueForTheTurn(int car_id, int lane, double distance_threshold, float d,
+                                                          double distance_to_car,
+                                                          double &minimal_distance_to_the_car_behind_on_the_left_side,
+                                                          int &index_of_closest_car_behind_left,
+                                                          double &minimal_distance_to_the_car_behind_on_the_right_side,
+                                                          int &index_of_closest_car_behind_right);
+
 // for convenience
 using nlohmann::json;
 using std::string;
@@ -62,10 +72,13 @@ int main() {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
-    double distance_for_a_next_waypoint = 30;
-    double target_speed = 49.5;
-    double distance_threshold = 30;
-    double dt = 0.02;
+
+    // Define constans
+    const double distance_for_a_next_waypoint = 30;
+    const double target_speed = 49.5;
+    const double distance_threshold = 30;
+    const double dt = 0.02;
+    const double max_acc = 0.224;
 
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
@@ -100,40 +113,46 @@ int main() {
 
           json msgJson;
 
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
+          // Size of previous path for reuse
           int prev_size = previous_path_x.size();
 
-          if (prev_size > 0) {
-            car_s = end_path_s;
-          }
-
+          // Define variables which will define possible behaviours
           bool canChangeLeft = true;
           bool canChangeRight = true;
           bool carAhead = false;
 
+          // This variable has same values as carAhead, introduced to have more semantic in the context
+          bool shouldSlowDown = false;
+
+          // Try to use end if existed path as current car position for trajectory prediction
+          if (prev_size > 0) {
+            car_s = end_path_s;
+          }
+
+          // Variables to find the closest cars in adjacent lines, to ensure that switching the line is safe
           double minimal_distance_to_the_car_behind_on_the_left_side = 100000;
           int index_of_closest_car_behind_left = -1;
 
           double minimal_distance_to_the_car_behind_on_the_right_side = 100000;
           int index_of_closest_car_behind_right = -1;
 
-          bool shouldSlowDown = false;
 
           for (auto & sf : sensor_fusion) {
+            // get d coordinate of the car
             float d = sf[6];
 
+            // check if car is on the our side of the highway
             if (d < 0 || d > 12) {
               continue;
             }
 
+            // disallow left turn if we are already on the most left lane
             if (lane <= 0) {
               std::cout << "can't change left because of the border of the road \n";
               canChangeLeft = false;
             }
 
+            // disallow right turn if we are already on the most left lane
             if (lane >= 2) {
               std::cout << "can't change right because of the border of the road \n";
               canChangeRight = false;
@@ -148,37 +167,18 @@ int main() {
             double distance_to_car = check_car_s - car_s;
 
             // looks for the cars in front
-            if (0 < distance_to_car && distance_to_car < distance_threshold) {
-              if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
-                std::cout << "can't change left because of prediction "<< distance_to_car << " " << distance_threshold << "\n";
-                canChangeLeft &= false;
-              }
-
-              if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
-                std::cout << "can't change right because of prediction \n";
-                canChangeRight &= false;
-              }
-            }
+            checkIfCanTurnBecauseOfCarsInFront(lane, distance_threshold, d, distance_to_car, canChangeLeft,
+                                               canChangeRight);
 
             // check if there some cars behind with high speed and find closest
-            if (distance_to_car < 0 && abs(distance_to_car) < distance_threshold*0.5) { // use 0.5 for more aggressive driving
-              if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
-                if(minimal_distance_to_the_car_behind_on_the_left_side > distance_to_car) {
-                  minimal_distance_to_the_car_behind_on_the_left_side = distance_to_car;
-                  index_of_closest_car_behind_left = sf[0];
-                }
-              }
-
-              if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
-                if(minimal_distance_to_the_car_behind_on_the_right_side > distance_to_car) {
-                  minimal_distance_to_the_car_behind_on_the_right_side = distance_to_car;
-                  index_of_closest_car_behind_right = sf[0];
-                }
-              }
-            }
+            findClosestCarsBehindWhichCanCreateAnIssueForTheTurn(sf[0], lane, distance_threshold, d, distance_to_car,
+                                                                 minimal_distance_to_the_car_behind_on_the_left_side,
+                                                                 index_of_closest_car_behind_left,
+                                                                 minimal_distance_to_the_car_behind_on_the_right_side,
+                                                                 index_of_closest_car_behind_right);
           }
 
-          //find speed of the closest cars behind
+          // check if changing the line is safe regarding the distance to the cars behind and their velocity
           for (auto & sf : sensor_fusion) {
             if (sf[0] == index_of_closest_car_behind_left ) {
               double vx = sf[3];
@@ -201,8 +201,7 @@ int main() {
             }
           }
 
-
-          // bahaviour
+          // use current sensor fusion data to prevent a collision with a car in front
           double car_measured_position = j[1]["s"];
 
           for (auto & sf : sensor_fusion) {
@@ -224,7 +223,8 @@ int main() {
           }
 
 
-
+          // make decision about changing the lane or decreasing the speed
+          // change the line if it makes sense
           if (carAhead && canChangeLeft) {
             lane--;
           } else if(carAhead && !canChangeLeft && canChangeRight) {
@@ -233,27 +233,29 @@ int main() {
             lane++;
           }
 
+          // change speed to avoid collision but tries to get back to the target speed if possible
           if(shouldSlowDown) {
-            ref_vel -= 0.224;
+            ref_vel -= max_acc;
           } else if(!shouldSlowDown && ref_vel < target_speed) {
-            ref_vel += 0.224;
+            ref_vel += max_acc;
           }
+// Debug
+//          std::cout << "shouldSlowDown " << shouldSlowDown
+//          << " canChangeLeft " << (canChangeLeft)
+//          << " canChangeRight " << (canChangeRight)
+//          << " lane " << lane
+//          <<"\n";
 
-          std::cout << "shouldSlowDown " << shouldSlowDown
-          << " canChangeLeft " << (canChangeLeft)
-          << " canChangeRight " << (canChangeRight)
-          << " lane " << lane
-          <<"\n";
-
-
+          // points that will be used to build the spline
           vector<double> ptsx;
           vector<double> ptsy;
 
+          // use sensor fusion data
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
 
-
+          // if there is no previous path, fake it by adding the augmented points using the known angle,
           if (prev_size < 2) {
             double prev_car_x = car_x - cos(car_yaw);
             double prev_car_y = car_y - sin(car_yaw);
@@ -278,8 +280,7 @@ int main() {
             ptsy.push_back(ref_y);
           }
 
-          // create a new point in Frenet coordinates
-
+          // create a new point in Frenet coordinates, which will be used to generate smooth path with spline
           vector<double> next_wp0 = getXY(car_s + 1*distance_for_a_next_waypoint, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           vector<double> next_wp1 = getXY(car_s + 2*distance_for_a_next_waypoint, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           vector<double> next_wp2 = getXY(car_s + 3*distance_for_a_next_waypoint, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -292,7 +293,7 @@ int main() {
           ptsy.push_back(next_wp1[1]);
           ptsy.push_back(next_wp2[1]);
 
-          // transform to local coordinates
+          // transform points to local coordinates from map coordinates
           for (int i = 0; i < ptsx.size(); i++) {
             double shift_x = ptsx[i] - ref_x;
             double shift_y = ptsy[i] - ref_y;
@@ -305,7 +306,7 @@ int main() {
           tk::spline s;
           s.set_points(ptsx, ptsy);
 
-          // real planer points
+          // this is real planner points
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
@@ -321,7 +322,7 @@ int main() {
 
           double x_add_on = 0;
 
-          // number of intervals for the target distance
+          // number of intervals for the target distance, we need to properly distribute our trajectory points
           double N = (target_dist/(dt*ref_vel/2.24)); // 2.24 is koef for miles
 
           for (int i = 0; i <= 50 - prev_size; i++) {
@@ -333,7 +334,8 @@ int main() {
 
             double x_ref = x_point;
             double y_ref = y_point;
-            // convert to global coordinates
+
+            // convert to map coordinates from local
             x_point = x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw);
             y_point = x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw);
 
@@ -378,4 +380,44 @@ int main() {
   }
   
   h.run();
+}
+
+void findClosestCarsBehindWhichCanCreateAnIssueForTheTurn(int car_id, int lane, const double distance_threshold, float d,
+                                                          double distance_to_car,
+                                                          double &minimal_distance_to_the_car_behind_on_the_left_side,
+                                                          int &index_of_closest_car_behind_left,
+                                                          double &minimal_distance_to_the_car_behind_on_the_right_side,
+                                                          int &index_of_closest_car_behind_right) {
+  if (distance_to_car < 0 && abs(distance_to_car) < distance_threshold * 0.5) { // use 0.5 for more aggressive driving
+    if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+      if(minimal_distance_to_the_car_behind_on_the_left_side > distance_to_car) {
+        minimal_distance_to_the_car_behind_on_the_left_side = distance_to_car;
+        index_of_closest_car_behind_left = car_id;
+      }
+    }
+
+    if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+      if(minimal_distance_to_the_car_behind_on_the_right_side > distance_to_car) {
+        minimal_distance_to_the_car_behind_on_the_right_side = distance_to_car;
+        index_of_closest_car_behind_right = car_id;
+      }
+    }
+  }
+}
+
+void checkIfCanTurnBecauseOfCarsInFront(int lane, const double distance_threshold, float d, double distance_to_car,
+                                        bool &canChangeLeft, bool &canChangeRight) {
+  if (0 < distance_to_car && distance_to_car < distance_threshold) {
+    if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) {
+      // Debug
+      // std::cout << "can't change left because of prediction "<< distance_to_car << " " << distance_threshold << "\n";
+      canChangeLeft &= false;
+    }
+
+    if (d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) {
+      // Debug
+      // std::cout << "can't change right because of prediction \n";
+      canChangeRight &= false;
+    }
+  }
 }
