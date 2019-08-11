@@ -82,11 +82,9 @@ canChangeLeft;
 #### Make decision about changing the lane or decreasing the speed
 ```
 if (carAhead && canChangeLeft) {
-	lane--;
+    lane--;
 } else if(carAhead && !canChangeLeft && canChangeRight) {
-	lane++;
-} else if(canChangeRight) {
-	lane++;
+    lane++;
 }
 ```
 

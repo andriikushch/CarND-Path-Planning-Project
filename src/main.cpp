@@ -240,8 +240,6 @@ int main() {
             lane--;
           } else if(carAhead && !canChangeLeft && canChangeRight) {
             lane++;
-          } else if(canChangeRight) {
-            lane++;
           }
 
           // change speed to avoid collision but tries to get back to the target speed if possible
